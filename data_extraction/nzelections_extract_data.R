@@ -11,10 +11,36 @@ library(XML)
 library(RCurl)
 setwd("C:\\DataSciToolkit\\myGitHub\\nzelections2014\\data_extraction")
 
+## ------------------------------------------------------------------------
+##
+# extract
+# Is a function which takes a dataframe (ID, url)
+# and returns a dataframe of the election data for the electorate
+# This function will be passed to ddply later on
+
+extract <- function(x) {
+  # 1. read in the HTML and extract the table data (td elements)
+  # 2. coerce the data into a matrix and transpose such that for each row we have 6 variables
+  #    those variables are:
+  #       {"ID", PartyName", "PartyVotes", "Blank", "CandidateName", "CandidateParty", "CandidateVotes"}
+  
+  doc <- htmlTreeParse(x$url, useInternalNodes=T)  
+  
+  rawData <- c(   xpathSApply(doc, "//table/tr[contains(@class, 'hhevy')]/td", xmlValue)
+                  , xpathSApply(doc, "//table/tr[contains(@class, 'hlite')]/td", xmlValue))  
+  
+  lclData <- as.data.frame(t(matrix(rawData, nrow=6, ncol=length(rawData)/6)))
+  
+  rm(doc)
+  rm(rawData)
+  
+  return (lclData)
+}
 
 ## ------------------------------------------------------------------------
 ##
 ## Extract Electorate Names, Numbers and linked pages
+#  This section prepares the various elements we will require
 
 # 1. Extract full HTML document
 
@@ -24,65 +50,52 @@ setwd("C:\\DataSciToolkit\\myGitHub\\nzelections2014\\data_extraction")
 #
 # NOTE: grep creates a ordinal index where TRUE. So we are filtering all links
 #       based on their position in the vector which coincide with the 'electorate-' pattern
-
-# 3. Use XQuery to extract the Electorate names from the hyperlinks
+#
+# 3. Create the full url address, and associate this with an electoral index
+#
+# 4. Use XQuery to extract the Electorate names from the hyperlinks, creating a dataframe of {ID, Electorate}
 
 electURL <- "http://www.electionresults.govt.nz/electionresults_2014/electorateindex.html"
 electDOC <- htmlTreeParse(electURL, useInternalNodes = TRUE)
-rawLinks <- xpathSApply(electDOC, '//a/@href')
 
+rawLinks <- xpathSApply(electDOC, '//a/@href')
 electLinks <- rawLinks[grep("electorate-", rawLinks)]
+
+electURLs <- paste("http://www.electionresults.govt.nz/electionresults_2014/", electLinks, sep='')
+electURLs <- data.frame(ID=c(1:length(electURLs)), url=electURLs)
+
 electNames <- xpathSApply(electDOC, "//a[contains(@href,'electorate-')]", xmlValue)
+electNames <- data.frame(ID = c(1:length(electNames)), Electorate=electNames)
 
 # clean up
 rm(electURL)
 rm(electDOC)
+rm(electLinks)
 rm(rawLinks)
 
 ## ------------------------------------------------------------------------
 ##
-## Read in the data from each electorate, and extract the data of interest
-
-# 1. Extract full HTML document for each electorate
-
-# 2. Extract:
-#       - the table of data
-#       - the rows of class "hhevy" or "hlite"
-#       - the columns of data
+## Gather the data for each electorate
 #
-#    The columns correspond to: {PartyName, PartyVotes, CandidateName, CandidateParty, CandidateVotes}
+#  Using the URLs gathered above, we pass these to extract()
+#  Extract() reads in the data of interest, coercing it into a data frame of variables
+#  ddply allows us to repeat this for all electorates (psuedo-setbased)
 
-electURLs <- paste("http://www.electionresults.govt.nz/electionresults_2014/", electLinks, sep='')
 
+votingData <- ddply(electURLs, "ID", extract)
 
-testURL <- "http://www.electionresults.govt.nz/electionresults_2014/electorate-1.html"
-testDOC <- htmlTreeParse(testURL, useInternalNodes=T)
+## ------------------------------------------------------------------------
+##
+## Clean the Data
+#
+#  1. Rename the votingData, first removing the 4 column which is blank
+#  2. Merge the Electoral Names data with the voting data
+#  3. Write out the cleansed data
 
-xpathSApply(testDOC, "//table/tr[contains(@class, 'hhevy')]/td")
-xpathSApply(testDOC, "//table/tr[contains(@class, 'hhevy')]/td", xmlValue) ## This is perfect, it just gives me the data
-                                                                           ## each row contains 6 variables, some of which may be empty
-                                                                           ## (Party, votes, NULL, Candidate, Party, Votes)
-t <- c(xpathSApply(testDOC, "//table/tr[contains(@class, 'hhevy')]/td", xmlValue)
-       , xpathSApply(testDOC, "//table/tr[contains(@class, 'hlite')]/td", xmlValue))
-# this gives me a vector of length 108, where there are 18 observations with 6 cols each
+votingData <- votingData[c(1, 2, 3, 5, 6, 7)]
 
-# either of these are equivalent, the second reduces memory cost
-s <- matrix(t, nrow=6, ncol=18)
+names(votingData) <- c("ID", "Party", "PartyVotes", "MPName", "MPParty", "MPVotes")
 
-# create a data frame
-data <- as.data.frame(t(s))
-names(data) <- c("PartyName", "PartyVotes", "Blank", "CandidateName", "CandidateParty", "CandidateVotes")
+cleanData <- merge(electNames, votingData)
 
-mergeData <- function(url) {
-  doc <- htmlTreeParse(url, useInternalNodes=T)
-  t <- c(xpathSApply(doc, "//table/tr[contains(@class, 'hhevy')]/td", xmlValue)
-         , xpathSApply(doc, "//table/tr[contains(@class, 'hlite')]/td", xmlValue))
-  lclData <- as.data.frame(t(matrix(t, nrow=6, ncol=length(t)/6)))
-  #lclData <- cbind(x[1], lclData)
-  lclData
-}
-
-u <- c("http://www.electionresults.govt.nz/electionresults_2014/electorate-1.html"
-       , "http://www.electionresults.govt.nz/electionresults_2014/electorate-2.html"
-       , "http://www.electionresults.govt.nz/electionresults_2014/electorate-3.html")
-ldply(u, mergeData)
+write.csv(cleanData, file="clean_electorate_data.csv")
