@@ -1,5 +1,6 @@
 ---
-title: "nzelections_eda"
+title: "NZ Election Data 2014"
+### Exploratory Data Analysis
 author: "Nick Burns"
 date: "Sunday, September 21, 2014"
 output: html_document
@@ -10,7 +11,7 @@ output: html_document
 # install.packages('reshape2')
 library(knitr)
 library(ggplot2)
-library(reshape2)
+library(sqldf)
 setwd("C:\\DataSciToolkit\\myGitHub\\nzelections2014\\data_exploration")
 
 data2014 <- read.csv("clean_electorate_data.csv")[, c(-1)]    # drop the "X" column that pops up
@@ -26,14 +27,14 @@ But despite all the hoo-ha, I didn't wait up for the live results. Instead, I ca
 
 ## Data2014 
 
-The data is a collection of voting data, categorised by Electorate. It includes 7 variables: 
-- ID 
-- Electorate
-- Party
-- PartyVotes
-- MPName
-- MPParty
-- MPVotes
+The data is a collection of voting data, categorised by Electorate. It includes 7 variables:   
+    - ID   
+    - Electorate  
+    - Party  
+    - PartyVotes  
+    - MPName  
+    - MPParty  
+    - MPVotes  
 
 And here is a summary of the data, the dataypes and the first 10 entries:
 ```{r echo=TRUE}
@@ -57,21 +58,60 @@ ggplot(data2014, aes(x=PartyVotes)) +
 
 ggplot(data2014, aes(x=MPVotes)) + 
   geom_histogram(stat="bin", colour="blue", fill="blue", binwidth=1000) +
-  ggtitle("Distribution of Party Votes in 2014 NZ General Election")
+  ggtitle("Distribution of Member Votes in 2014 NZ General Election")
 
 ```
 
 Let's look at the winning parties in each electorate:
 ```{r echo=TRUE}
+# set the colour fill to match the party colours:
+# party order: (ACT, Labour, Maori, National, United)
+palette <- c("red", "blue")
 
+party <- sqldf(
+  "select d1.ID, d2.Party, max(d1.PartyVotes)
+   from data2014 d1
+     join data2014 d2
+   where d1.ID = d2.ID
+   group by d1.ID
+   having d2.PartyVotes = max(d2.PartyVotes)"
+  )
+
+names(party) <- c("Electorate", "Party", "Votes")
+
+ggplot(party, aes(x=Electorate, y=Votes, fill=Party)) + 
+  geom_bar(stat="identity", alpha=0.8) + 
+  scale_fill_manual(values=palette) +
+  ggtitle("Winning Party by Electorate") +
+  scale_x_discrete(breaks = c(1, 10, 20, 30, 40, 50, 60, 70))
 ```
 
-Let's look at the winning parties in each electorate:
+The plot above shows us that the National or Labour parties won the majority vote in all electorates. At first this was surprising, however this was verified visually using The New Zealand Herald's interactive application (http://data.nzherald.co.nz/electorates/). The interactive app confirmed that in all cases, the winning party was either National or Labour. 
+
+Competition for the second place was more varied. Again using the NZ Herald's app, it became clear that where National won the party vote in any given electorate, there was more competition for second place with the Green Party and NZ First sometimes beating Labour into second place.  
+
+Let's look at the winning members in each electorate:
 ```{r echo=TRUE}
+palette <- c("yellow", "red", "orange", "blue", "purple")
 
+member <- sqldf(
+  "select d1.ID, d2.Party, max(d1.MPVotes)
+   from data2014 d1
+     join data2014 d2
+   where d1.ID = d2.ID
+   group by d1.Electorate
+   having d2.MPVotes = max(d2.MPVotes)"
+  )
+
+names(member) <- c("Electorate", "Party", "Votes")
+
+ggplot(member, aes(x=Electorate, y=Votes, fill=Party)) + 
+  geom_bar(stat="identity", alpha=0.8) + 
+  scale_fill_manual(values=palette) +
+  ggtitle("Party of Winning Member by Electorate") +
+  scale_x_discrete(breaks = c(1, 10, 20, 30, 40, 50, 60, 70))
 ```
 
-And let's see if there is perhaps a correlation between the winning Party and the Party of the winning MP:
-```{r echo=TRUE}
-#cor()
-```
+From the plot above we observe more diversity in the party of the winning member, compared to the winning party. There appears to be a more even distribution on National and Labour members as well as a single ACT, Maori Party and United Future member in three electorates.
+
+We would expect there to be a strong correlation between members and parties receiving the majority vote in each electorate. Though perhaps overall the lack of diversity is surprising.
