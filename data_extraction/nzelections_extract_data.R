@@ -99,3 +99,8 @@ names(votingData) <- c("ID", "Party", "PartyVotes", "MPName", "MPParty", "MPVote
 cleanData <- merge(electNames, votingData)
 
 write.csv(cleanData, file="clean_electorate_data.csv")
+
+rm(votingData)
+rm(cleanData)
+rm(electNames)
+rm(electURLs)
