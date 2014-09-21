@@ -2,13 +2,13 @@
 #
 # Course Project, Sept 2014
 # Duke University via Coursera
-# Nick Brns
+# Nick Burns
 ##
 
 ##install.packages("XML")
 ##install.packages("RCurl")
 library(XML)
-library(RCurl)
+library(plyr)
 setwd("C:\\DataSciToolkit\\myGitHub\\nzelections2014\\data_extraction")
 
 ## ------------------------------------------------------------------------
@@ -92,11 +92,16 @@ votingData <- ddply(electURLs, "ID", extract)
 #  2. Merge the Electoral Names data with the voting data
 #  3. Write out the cleansed data
 
-votingData <- votingData[c(1, 2, 3, 5, 6, 7)]
+votingData <- votingData[c(-4)]
 
 names(votingData) <- c("ID", "Party", "PartyVotes", "MPName", "MPParty", "MPVotes")
 
 cleanData <- merge(electNames, votingData)
+
+# Finally, I need to tweak the vote counts to remove the commas and ensure they can
+# be read in as numeric data
+cleanData$PartyVotes <- gsub(",", "", cleanData$PartyVotes)
+cleanData$MPVotes <- gsub(",", "", cleanData$MPVotes)
 
 write.csv(cleanData, file="clean_electorate_data.csv")
 

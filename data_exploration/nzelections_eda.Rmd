@@ -1,0 +1,77 @@
+---
+title: "nzelections_eda"
+author: "Nick Burns"
+date: "Sunday, September 21, 2014"
+output: html_document
+---
+
+## Introduction 
+```{r echo=FALSE}
+# install.packages('reshape2')
+library(knitr)
+library(ggplot2)
+library(reshape2)
+setwd("C:\\DataSciToolkit\\myGitHub\\nzelections2014\\data_exploration")
+
+data2014 <- read.csv("clean_electorate_data.csv")[, c(-1)]    # drop the "X" column that pops up
+
+data2014$ID <- as.factor(data2014$ID)
+```
+
+The 2014 New Zealand General Elections were held on September 20th, 2014.   
+
+7 PM Saturday night rolled around and we tuned the television into the live election broadcasts. The polls were closed and everyone was expecting a close fought battle between a hopeful Labour party and a beleaguered National party. Negative publicity around the DotCom scandal and the shadow of  alleged dirty politics made it seem like if National were to cross the line, it would do so with a sever limp. Nobody predicted National's landslide win which could see them in power without having to bend their knee to the smaller coalition parties. Along with the triumph was the drama of a defeated Labour, a less-than-popular leader in Cunliffe, the fall of "brand Dotcom", a politically-impotent Winston Peters. All-in-all it has to be one the more dynamic and interesting elections New Zealand has experienced.   
+
+But despite all the hoo-ha, I didn't wait up for the live results. Instead, I called it an early night and woke up early to start digging into the voting data! I have downloaded voting data from the New Zealand Electoral Commission and transformed and cleaned the dataset which is loaded as ```data2014```. Let's explore.  
+
+## Data2014 
+
+The data is a collection of voting data, categorised by Electorate. It includes 7 variables: 
+- ID 
+- Electorate
+- Party
+- PartyVotes
+- MPName
+- MPParty
+- MPVotes
+
+And here is a summary of the data, the dataypes and the first 10 entries:
+```{r echo=TRUE}
+summary(data2014)
+str(data2014)
+head(data2014, 10)
+```
+
+From the summary data, we can see that there are:
+- 71 unique IDs which correspond to 71 Electorates
+- a wide range of PartyVotes (min: 0, max: 21765, median: 128, mean: 1974)
+- and a wide range of MPVotes (min: 11, max: 22657, median: 1285, mean: 4322)
+
+## Exploring the Data
+
+The median and mode values for both PartyVotes and MPVotes suggest a strongly right-skewed distribution:
+```{r echo=TRUE}
+ggplot(data2014, aes(x=PartyVotes)) + 
+  geom_histogram(stat="bin", colour="blue", fill="blue", binwidth=1000) +
+  ggtitle("Distribution of Party Votes in 2014 NZ General Election")
+
+ggplot(data2014, aes(x=MPVotes)) + 
+  geom_histogram(stat="bin", colour="blue", fill="blue", binwidth=1000) +
+  ggtitle("Distribution of Party Votes in 2014 NZ General Election")
+
+```
+
+Let's look at the winning parties in each electorate:
+```{r echo=TRUE}
+
+```
+
+Let's look at the winning parties in each electorate:
+```{r echo=TRUE}
+
+```
+
+And let's see if there is perhaps a correlation between the winning Party and the Party of the winning MP:
+```{r echo=TRUE}
+#cor()
+```
